@@ -206,16 +206,16 @@ html[data-theme="neon"] {
 
 ## Controls
 
-| Action                      | Result                          |
-| --------------------------- | ------------------------------- |
-| Tap the clock (not playing) | starts the radio                |
-| Tap the clock (playing)     | toggles fullscreen              |
-| ‹‹ / ››                     | previous / next station         |
-| Tap the station name        | opens the station picker        |
-| Gear button                 | opens settings / themes         |
-| ⛶ top right                 | fullscreen                      |
-| Volume slider               | sets stream volume, remembered  |
-| `c` / `Esc`                 | open settings / close any panel |
+| Action                      | Result                                              |
+| --------------------------- | --------------------------------------------------- |
+| Tap the clock (not playing) | starts the radio                                    |
+| Tap the clock (playing)     | toggles fullscreen                                  |
+| ‹‹ / ››                     | previous / next station                             |
+| Tap the station name        | opens the station picker                            |
+| Gear button (bottom)        | opens settings                                      |
+| ⛶ button (bottom)           | fullscreen                                          |
+| Volume slider               | sets stream volume, remembered (in bar or Settings) |
+| `Space` / `f` / `c` / `Esc` | play/pause, fullscreen, settings, close panels      |
 
 ## Tested on
 

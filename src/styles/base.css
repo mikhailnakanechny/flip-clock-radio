@@ -404,19 +404,6 @@ body.size-huge .digit {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.song {
-  display: none;
-  font-size: calc(var(--fs) * 0.95);
-  line-height: 1.15;
-  color: var(--ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  opacity: 0.9;
-}
-.song.show {
-  display: block;
-}
 .dot {
   display: inline-block;
   width: 1.1vh;
@@ -609,12 +596,17 @@ body.night .stage {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  border: 1px solid #4a2426;
-  background: #241314;
-  color: #ff8a80;
+  border: 1px solid var(--panel-border-soft);
+  background: var(--control-bg);
+  color: var(--ink);
   cursor: pointer;
   line-height: 1;
   font-size: calc(var(--fs) * 1.12);
+}
+.del:hover,
+.del:focus-visible {
+  border-color: #c0392b;
+  color: #ff8a80;
 }
 .swatch {
   display: flex;
@@ -636,6 +628,26 @@ body.night .stage {
   margin-left: 0.6vw;
 }
 
+.corner-actions {
+  position: fixed;
+  right: 2vw;
+  bottom: 2vh;
+  z-index: 12;
+  display: flex;
+  gap: 1vw;
+  background: transparent;
+}
+.corner-actions .btn {
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--dim);
+  box-shadow: none;
+}
+.corner-actions .btn:hover,
+.corner-actions .btn:focus-visible {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ink);
+}
+
 .hint {
   position: fixed;
   left: 0;
@@ -649,6 +661,7 @@ body.night .stage {
   opacity: 0;
   transition: opacity 0.4s ease;
   pointer-events: none;
+  z-index: 11;
 }
 .hint.show {
   opacity: 0.9;

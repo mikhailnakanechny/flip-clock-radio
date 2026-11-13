@@ -8,28 +8,18 @@
   var nextBtn = document.getElementById("next");
   var nameEl = document.getElementById("stationName");
   var subEl = document.getElementById("stationSub");
-  var songEl = document.getElementById("stationSong");
   var dot = document.getElementById("dot");
   var vol = document.getElementById("vol");
+  var volSetting = document.getElementById("volumeSetting");
   var hint = document.getElementById("hint");
-  var currentSong = "";
 
   var savedVol = parseInt(localStorage.getItem("fc.volume") || "70", 10);
   vol.value = savedVol;
+  if (volSetting) volSetting.value = savedVol;
   audio.volume = savedVol / 100;
 
   function currentStation() {
     return state.stations[idx] || { name: "No stations", sub: "add one in Settings" };
-  }
-
-  function setSong(title) {
-    var next = title || "";
-    if (next === currentSong) return;
-    currentSong = next;
-    if (songEl) {
-      songEl.textContent = currentSong;
-      songEl.classList.toggle("show", !!currentSong);
-    }
   }
 
   function updateMetadata() {
@@ -37,8 +27,8 @@
     try {
       var s = currentStation();
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: currentSong || s.name,
-        artist: currentSong ? s.name : s.sub || "",
+        title: s.name,
+        artist: s.sub || "",
         album: "Radio"
       });
     } catch (e) {}
@@ -48,7 +38,6 @@
     var s = currentStation();
     nameEl.textContent = s.name;
     subEl.textContent = s.sub || "";
-    setSong("");
     document.title = "Flip Clock · " + s.name;
     if (onStationChange) onStationChange(idx, wantPlay);
     updateMetadata();
@@ -67,7 +56,8 @@
       playBtn.setAttribute("aria-label", "play");
       if (st === "err") {
         subEl.textContent = "stream unreachable — try another station";
-        setSong("");
+      } else if (st === "idle") {
+        subEl.textContent = (state.stations[idx] || {}).sub || "";
       }
     }
   }
@@ -94,7 +84,6 @@
     audio.load();
     setState("idle");
     subEl.textContent = (state.stations[idx] || {}).sub || "";
-    setSong("");
   }
 
   function selectStation(i, play) {
@@ -135,15 +124,23 @@
   });
   vol.addEventListener("input", function () {
     audio.volume = vol.value / 100;
+    if (volSetting) volSetting.value = vol.value;
     localStorage.setItem("fc.volume", vol.value);
   });
+  if (volSetting) {
+    volSetting.addEventListener("input", function () {
+      vol.value = volSetting.value;
+      audio.volume = volSetting.value / 100;
+      localStorage.setItem("fc.volume", volSetting.value);
+    });
+  }
 
   audio.addEventListener("playing", function () {
     setState("live");
-    updateMetadata();
   });
   audio.addEventListener("waiting", function () {
     dot.className = "dot";
+    if (wantPlay) subEl.textContent = "buffering…";
   });
   audio.addEventListener("pause", function () {
     if (!wantPlay) setState("idle");
@@ -151,11 +148,9 @@
   audio.addEventListener("error", function () {
     setState("err");
   });
-  audio.addEventListener("loadedmetadata", function () {
-    updateMetadata();
-  });
   audio.addEventListener("stalled", function () {
     dot.className = "dot";
+    if (wantPlay) subEl.textContent = "buffering…";
   });
 
   if ("mediaSession" in navigator) {

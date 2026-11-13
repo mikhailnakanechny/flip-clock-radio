@@ -151,6 +151,15 @@
     e.stopPropagation();
     openStationsPanel();
   });
+  if (openStationsRow) {
+    openStationsRow.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        e.stopPropagation();
+        openStationsPanel();
+      }
+    });
+  }
   closeStationsBtn.addEventListener("click", function (e) {
     e.stopPropagation();
     closeStationsPanel();
@@ -199,6 +208,17 @@
         deps.applyClock();
         markClockRows();
         deps.tick();
+      });
+      row.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          e.stopPropagation();
+          var i = d.values.indexOf(deps.clockState[d.id]);
+          deps.clockState[d.id] = d.values[(i + 1) % d.values.length];
+          deps.applyClock();
+          markClockRows();
+          deps.tick();
+        }
       });
       clockList.appendChild(row);
       clockRows.push({ def: d, now: val });

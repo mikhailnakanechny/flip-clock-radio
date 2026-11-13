@@ -37,15 +37,25 @@
       <button class="btn" id="prev" aria-label="previous station">&#9664;&#9664;</button>
       <button class="btn primary" id="play" aria-label="play">&#9654;</button>
       <button class="btn" id="next" aria-label="next station">&#9654;&#9654;</button>
-      <div class="meta" id="meta" title="choose station">
+      <div
+        class="meta"
+        id="meta"
+        title="choose station"
+        role="button"
+        tabindex="0"
+        aria-label="choose station"
+        aria-expanded="false"
+      >
         <div class="station">
           <span class="dot" id="dot"></span><span id="stationName">—</span
           ><span class="chev">&#9662;</span>
         </div>
         <div class="sub" id="stationSub">tap play to start</div>
-        <div class="song" id="stationSong"></div>
       </div>
       <input type="range" id="vol" min="0" max="100" value="70" aria-label="volume" />
+    </div>
+
+    <div class="corner-actions" id="cornerActions">
       <button class="btn" id="cfg" aria-label="settings" title="settings">
         <svg
           width="20"
@@ -106,7 +116,19 @@
         <div class="txt"><div class="n">Font size</div></div>
         <select class="sel" id="fontSel" aria-label="font size"></select>
       </div>
-      <div class="row" id="openStations">
+      <div class="row">
+        <div class="txt"><div class="n">Volume</div></div>
+        <input
+          class="sel"
+          id="volumeSetting"
+          type="range"
+          min="0"
+          max="100"
+          value="70"
+          aria-label="volume"
+        />
+      </div>
+      <div class="row" id="openStations" role="button" tabindex="0">
         <div class="txt">
           <div class="n">Stations</div>
           <div class="s" id="stationCount">manage list</div>

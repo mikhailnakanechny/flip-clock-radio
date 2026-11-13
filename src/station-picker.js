@@ -45,6 +45,14 @@
         radio.selectStation(i, true);
         closePicker();
       });
+      row.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          e.stopPropagation();
+          radio.selectStation(i, true);
+          closePicker();
+        }
+      });
       listEl.appendChild(row);
       rows.push({ el: row, now: now });
     });
@@ -54,16 +62,29 @@
   function openPicker() {
     markRows();
     picker.classList.add("open");
+    if (metaEl) metaEl.setAttribute("aria-expanded", "true");
   }
   function closePicker() {
     picker.classList.remove("open");
     markRows();
+    if (metaEl) metaEl.setAttribute("aria-expanded", "false");
+  }
+
+  function togglePicker() {
+    if (picker.classList.contains("open")) closePicker();
+    else openPicker();
   }
 
   metaEl.addEventListener("click", function (e) {
     e.stopPropagation();
-    if (picker.classList.contains("open")) closePicker();
-    else openPicker();
+    togglePicker();
+  });
+  metaEl.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      e.stopPropagation();
+      togglePicker();
+    }
   });
   closeBtn.addEventListener("click", function (e) {
     e.stopPropagation();
