@@ -1,0 +1,12 @@
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# local scratch
+tmp/
+*.log
+
+# local test artefacts (screenshots belong in assets/ and are tracked)
+!assets/*.png

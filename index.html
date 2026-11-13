@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Flip Clock Radio</title>
+<script>
+  /* apply the saved theme before first paint, so a light theme never flashes dark */
+  try {
+    document.documentElement.setAttribute("data-theme",
+      localStorage.getItem("fc.theme") || "softblack");
+    /* interface font size is a px value: 12, 14, 16 ... 24 (default 12) */
+    var fs = parseInt(localStorage.getItem("fc.fs"), 10);
+    if (!(fs >= 12 && fs <= 24 && fs % 2 === 0)) fs = 12;
+    document.documentElement.style.setProperty("--fs", fs + "px");
+  } catch (e) {}
+</script>
+<style>
+  :root {
+    /* default = Soft Black: warm off-white on warm near-black, not #fff on #000 */
+    --bg:#141311; --card:#1d1a16; --card-edge:#2c2822; --digit:#e6e2d8;
+    --dim:#8a8375; --seam:#0c0b09; --accent:#d9b26a; --bar:#191612; --ink:#ede8dc;
+    --fs:12px; --btn:1; --dt:1;
+    /* the bar grows with the interface text so it never covers the clock */
+    --bar-h:max(16.5vh, calc(var(--fs) * 2.9 + 15px));
+  }
+
+  /* ---------- themes ---------- */
+  html[data-theme="softblack"] {
+    --bg:#141311; --card:#1d1a16; --card-edge:#2c2822; --digit:#e6e2d8;
+    --dim:#8a8375; --seam:#0c0b09; --accent:#d9b26a; --bar:#191612; --ink:#ede8dc;
+  }
+  html[data-theme="ivory"] {
+    --bg:#100f0d; --card:#1a1713; --card-edge:#2a251e; --digit:#faf8f5;
+    --dim:#8e877b; --seam:#0a0908; --accent:#c9a227; --bar:#14110e; --ink:#f3efe7;
+  }
+  html[data-theme="oatmeal"] {
+    --bg:#17130d; --card:#221c14; --card-edge:#33291d; --digit:#eae0c8;
+    --dim:#8f836c; --seam:#0f0b07; --accent:#c8933f; --bar:#1b1610; --ink:#f0e8d8;
+  }
+  html[data-theme="midnight"] { --ink:#f0f0f2;
+    --bg:#000; --card:#1a1a1c; --card-edge:#2b2b2f; --digit:#f2f2f4;
+    --dim:#6d6d73; --seam:#000; --accent:#39b7a8; --bar:#0d0d0f; --ink:#f0f0f2;
+  }
+  html[data-theme="paper"] { --ink:#1b1b1f;
+    --bg:#d9d6cc; --card:#f4f2ea; --card-edge:#bcb8ab; --digit:#1b1b1f;
+    --dim:#7d7a6c; --seam:#cfcbbf; --accent:#b0562f; --bar:#e6e3da;
+  }
+  html[data-theme="amber"] { --ink:#ffd9a0;
+    --bg:#0a0700; --card:#1d1305; --card-edge:#3d2608; --digit:#ffb347;
+    --dim:#8a5a1e; --seam:#120b01; --accent:#ff9f1c; --bar:#110b02;
+  }
+  html[data-theme="ocean"] { --ink:#e6f4ff;
+    --bg:#00060d; --card:#0d1a26; --card-edge:#1b3145; --digit:#d8ecff;
+    --dim:#4d7391; --seam:#000409; --accent:#2ea8ff; --bar:#05101a;
+  }
+  html[data-theme="forest"] { --ink:#e2ffe8;
+    --bg:#030804; --card:#0d1a10; --card-edge:#17301d; --digit:#dcf5e0;
+    --dim:#4e7a58; --seam:#020602; --accent:#52c46a; --bar:#04100a;
+  }
+  html[data-theme="mono"] { --ink:#ffffff;
+    --bg:#000; --card:#0f0f0f; --card-edge:#2e2e2e; --digit:#ffffff;
+    --dim:#5f5f5f; --seam:#000; --accent:#ffffff; --bar:#000000;
+  }
+  html[data-theme="rose"] { --ink:#ffe6ef;
+    --bg:#0d0308; --card:#1e0d15; --card-edge:#3d1a29; --digit:#ffe0ec;
+    --dim:#8c5570; --seam:#0a0206; --accent:#ff5c8a; --bar:#140609;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { background:var(--bg); }
+  html, body {
+    height:100%; background:var(--bg); overflow:hidden;
+    font-family:-apple-system,"Roboto","Segoe UI",Arial,sans-serif;
+    -webkit-user-select:none; user-select:none;
+  }
+  body, .card, .player, .digit { transition:background .35s ease, color .35s ease; }
+  /* the control bar is fixed at the top, so keep the clock clear of it;
+     the bottom padding clears Android's navigation bar unless we're fullscreen */
+  body { padding-top:var(--bar-h); padding-bottom:10vh; }
+  html:fullscreen body, html:-webkit-full-screen body { padding-bottom:0; }
+  body { display:flex; flex-direction:column; }
+
+  /* ---------- clock area ---------- */
+  .stage {
+    flex:1 1 auto; min-height:0;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:2vh;
+  }
+  .clock { display:flex; align-items:center; justify-content:center; gap:1.6vw; }
+  .group { display:flex; gap:1.1vw; }
+
+  .card {
+    position:relative; width:15vw; height:38vh;
+    border-radius:1.4vh; background:var(--card);
+    box-shadow:0 .7vh 0 var(--card-edge), 0 1.2vh 2.4vh rgba(0,0,0,.55);
+    overflow:hidden; perspective:60vh;
+  }
+  .card::after {
+    content:""; position:absolute; left:0; right:0; top:50%;
+    height:2px; background:var(--seam); opacity:.85;
+  }
+  .digit {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:30vh; font-weight:700; line-height:1; letter-spacing:-.02em;
+    color:var(--digit); font-variant-numeric:tabular-nums;
+    backface-visibility:hidden;
+  }
+  .digit.flip-out { animation:flipOut .38s cubic-bezier(.4,0,.9,.6) forwards; }
+  .digit.flip-in  { animation:flipIn  .38s cubic-bezier(.1,.6,.6,1) forwards; }
+  @keyframes flipOut { from{transform:rotateX(0)}    to{transform:rotateX(-92deg);opacity:0} }
+  @keyframes flipIn  { from{transform:rotateX(92deg);opacity:0} to{transform:rotateX(0)} }
+
+  .colon { width:3.2vw; display:flex; flex-direction:column; align-items:center; gap:4vh; }
+  .colon i {
+    display:block; width:1.15vw; height:1.15vw; min-width:7px; min-height:7px;
+    border-radius:50%; background:var(--dim); transition:opacity .25s ease;
+  }
+  .colon.dim i { opacity:.28; }
+
+  .date {
+    font-size:calc(3vh * var(--dt)); letter-spacing:.22em; text-transform:uppercase; color:var(--dim);
+  }
+  .secs {
+    display:none; font-size:2.2vh; letter-spacing:.16em; color:var(--dim);
+    font-variant-numeric:tabular-nums;
+  }
+  body.showsecs .secs { display:block; }
+  body.nodate .date { display:none; }
+
+  /* card size options */
+  body.size-large .card  { width:17vw; height:42vh; }
+  body.size-large .digit { font-size:33vh; }
+  body.size-huge  .card  { width:19vw; height:44vh; }
+  body.size-huge  .digit { font-size:35vh; }
+
+  /* ---------- player bar ---------- */
+  .player {
+    position:fixed; top:0; left:0; right:0; z-index:10;
+    display:flex; align-items:center; gap:1.2vw;
+    padding:1.1vh 2vw;
+    background:var(--bar);
+    border-bottom:1px solid #17171a;
+    box-shadow:0 .6vh 1.6vh rgba(0,0,0,.45);
+  }
+  .btn {
+    flex:0 0 auto;
+    width:calc(13vh * var(--btn)); height:calc(13vh * var(--btn)); min-width:40px; min-height:40px;
+    display:flex; align-items:center; justify-content:center;
+    background:#17171a; color:#e9e9ec; border:none; border-radius:50%;
+    font-size:calc(4.6vh * var(--btn)); line-height:1; cursor:pointer;
+    transition:background .15s ease, transform .1s ease;
+  }
+  .btn:active { transform:scale(.94); }
+  .btn.primary { background:var(--accent); color:#04120f; }
+  .btn[disabled] { opacity:.35; }
+
+  .meta { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:.4vh; }
+  .station {
+    font-size:calc(var(--fs) * 1.45); line-height:1.15; color:var(--ink); font-weight:600; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis;
+  }
+  .sub {
+    font-size:calc(var(--fs) * 1.05); line-height:1.15; color:var(--dim); letter-spacing:.06em;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .dot {
+    display:inline-block; width:1.1vh; height:1.1vh; min-width:6px; min-height:6px;
+    border-radius:50%; background:#3a3a3e; margin-right:.8vw; vertical-align:middle;
+    transition:background .3s ease;
+  }
+  .dot.live { background:var(--accent); box-shadow:0 0 1.2vh rgba(57,183,168,.7); }
+  .dot.err  { background:#c0392b; }
+
+  input[type=range] {
+    -webkit-appearance:none; appearance:none;
+    width:14vw; min-width:80px; height:1.4vh; border-radius:1vh;
+    background:#2a2a2e; outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:3.2vh; height:3.2vh; min-width:18px; min-height:18px;
+    border-radius:50%; background:#cfcfd4; cursor:pointer;
+  }
+
+  /* ---------- night dimming (theme-agnostic: dims the clock only) ---------- */
+  .stage { transition:opacity .6s ease; }
+  body.night .stage { opacity:.4; }
+
+  /* ---------- hint ---------- */
+  /* ---------- station picker ---------- */
+  .picker {
+    position:fixed; inset:0; z-index:20; display:none;
+    flex-direction:column; gap:1vh;
+    padding:2.2vh 3vw 13vh;
+    background:#08080a;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .picker.open { display:flex; }
+  .picker-head {
+    position:sticky; top:0; z-index:3;
+    background:#08080a;
+    display:flex; align-items:center; justify-content:space-between;
+    padding-bottom:1.2vh; border-bottom:1px solid #1c1c20; margin-bottom:1vh;
+  }
+  .picker-head span {
+    font-size:calc(var(--fs) * 1.12); letter-spacing:.18em; text-transform:uppercase; color:var(--dim);
+  }
+  .row {
+    display:flex; align-items:center; justify-content:space-between; gap:2vw;
+    padding:1.5vh 2.2vw; border-radius:1.1vh; background:#141417;
+    border:1px solid transparent;
+  }
+  .row.on { border-color:var(--accent); background:#10201e; }
+  .row .txt { display:flex; flex-direction:column; gap:.2vh; min-width:0; }
+  .row .n { font-size:calc(var(--fs) * 1.25); color:#f0f0f2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row .s { font-size:var(--fs); color:var(--dim); }
+  .row .now {
+    flex:0 0 auto; font-size:var(--fs); letter-spacing:.12em; text-transform:uppercase;
+    color:var(--accent);
+  }
+  .sec-label {
+    font-size:var(--fs); letter-spacing:.18em; text-transform:uppercase;
+    color:var(--dim); margin:1vh 0 .2vh;
+  }
+  .sel {
+    flex:0 0 auto;
+    background:#1c1c20; color:var(--ink);
+    border:1px solid #35353c; border-radius:1.2vh;
+    padding:.8vh 1.4vw; font-family:inherit;
+    font-size:calc(var(--fs) * 1.05);
+    outline:none; cursor:pointer;
+  }
+  .sel option { background:#1c1c20; color:#f0f0f2; }
+  .inp {
+    width:100%; background:#1c1c20; color:var(--ink);
+    border:1px solid #35353c; border-radius:1.2vh;
+    padding:1.1vh 1.6vw; font-family:inherit;
+    font-size:calc(var(--fs) * 1.05);
+    outline:none;
+  }
+  .inp::placeholder { color:#6d6d73; }
+  .form { display:flex; flex-direction:column; gap:1vh; }
+  .btns { display:flex; gap:2vw; margin-top:.4vh; }
+  .ghost {
+    flex:1 1 auto; background:#17171a; color:var(--ink);
+    border:1px solid #35353c; border-radius:1.2vh;
+    padding:1.1vh 2vw; font-family:inherit; cursor:pointer;
+    font-size:calc(var(--fs) * 1.05);
+  }
+  .del {
+    flex:0 0 auto; width:8vh; height:8vh; min-width:36px; min-height:36px;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:50%; border:1px solid #4a2426; background:#241314;
+    color:#ff8a80; cursor:pointer; line-height:1;
+    font-size:calc(var(--fs) * 1.12);
+  }
+  .swatch { display:flex; gap:.7vw; flex:0 0 auto; }
+  .swatch i {
+    display:block; width:2.8vh; height:2.8vh; min-width:13px; min-height:13px;
+    border-radius:50%; border:1px solid rgba(255,255,255,.22);
+  }
+  .meta { cursor:pointer; }
+  .chev { color:var(--dim); font-size:2vh; margin-left:.6vw; }
+
+  .hint {
+    position:fixed; left:0; right:0; bottom:13vh;
+    text-align:center; font-size:2.6vh; color:var(--accent);
+    letter-spacing:.12em; text-transform:uppercase;
+    opacity:0; transition:opacity .4s ease; pointer-events:none;
+  }
+  .hint.show { opacity:.9; }
+
+  /* phones: keep it usable in portrait */
+  @media (max-aspect-ratio: 1/1) {
+    .card { width:36vw; height:26vh; }
+    .digit { font-size:20vh; }
+    .colon { width:7vw; gap:3vh; }
+    .colon i { width:2.4vw; height:2.4vw; }
+    .clock { gap:2.5vw; }
+    .group { gap:2vw; }
+  }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="clock">
+      <div class="group" id="h1"></div>
+      <div class="group" id="h2"></div>
+      <div class="colon" id="colon"><i></i><i></i></div>
+      <div class="group" id="m1"></div>
+      <div class="group" id="m2"></div>
+    </div>
+    <div class="date" id="date"></div>
+    <div class="secs" id="secs"></div>
+  </div>
+
+  <div class="player" id="player">
+    <button class="btn" id="prev" aria-label="previous station">&#9664;&#9664;</button>
+    <button class="btn primary" id="play" aria-label="play">&#9654;</button>
+    <button class="btn" id="next" aria-label="next station">&#9654;&#9654;</button>
+    <div class="meta" id="meta" title="choose station">
+      <div class="station"><span class="dot" id="dot"></span><span id="stationName">—</span><span class="chev">&#9662;</span></div>
+      <div class="sub" id="stationSub">tap play to start</div>
+    </div>
+    <input type="range" id="vol" min="0" max="100" value="70" aria-label="volume">
+    <button class="btn" id="cfg" aria-label="settings" title="settings">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+    <button class="btn" id="fs" aria-label="fullscreen" title="fullscreen">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 9V4h5"/><path d="M20 15v5h-5"/>
+        <path d="M15 4h5v5"/><path d="M9 20H4v-5"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="picker" id="picker">
+    <div class="picker-head">
+      <span>Stations</span>
+      <button class="btn" id="closePicker" aria-label="close">&#10005;</button>
+    </div>
+    <div id="stationList"></div>
+  </div>
+
+  <div class="picker" id="settings">
+    <div class="picker-head">
+      <span>Settings</span>
+      <button class="btn" id="closeSettings" aria-label="close">&#10005;</button>
+    </div>
+    <div class="sec-label">Clock</div>
+    <div id="clockList"></div>
+    <div class="sec-label">Appearance</div>
+    <div class="row">
+      <div class="txt"><div class="n">Theme</div></div>
+      <select class="sel" id="themeSel" aria-label="theme"></select>
+    </div>
+    <div class="row">
+      <div class="txt"><div class="n">Font size</div></div>
+      <select class="sel" id="fontSel" aria-label="font size"></select>
+    </div>
+    <div class="row" id="openStations">
+      <div class="txt">
+        <div class="n">Stations</div>
+        <div class="s" id="stationCount">manage list</div>
+      </div>
+      <div class="now">&#8250;</div>
+    </div>
+  </div>
+
+  <div class="picker" id="stationsPanel">
+    <div class="picker-head">
+      <span>Stations</span>
+      <button class="btn" id="closeStations" aria-label="close">&#10005;</button>
+    </div>
+    <div id="manageList"></div>
+    <div class="sec-label">Add station</div>
+    <div class="form">
+      <input class="inp" id="newName" type="text" placeholder="Name, e.g. NTS Radio" />
+      <input class="inp" id="newUrl" type="url" inputmode="url" placeholder="https://stream.example.com/live.mp3" />
+      <div class="btns">
+        <button class="ghost" id="addStation">Add</button>
+        <button class="ghost" id="restoreStations">Restore defaults</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="hint" id="hint">tap &#9654; to start the radio</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var DEFAULT_STATIONS = [
+    { name: "FIP",             sub: "eclectic · Radio France", url: "https://icecast.radiofrance.fr/fip-midfi.mp3" },
+    { name: "FIP Rock",        sub: "rock · Radio France",      url: "https://icecast.radiofrance.fr/fiprock-midfi.mp3", since: 3 },
+    { name: "FIP Jazz",        sub: "jazz · Radio France",      url: "https://icecast.radiofrance.fr/fipjazz-midfi.mp3", since: 3 },
+    { name: "Radio Paradise",  sub: "eclectic · rock",         url: "https://stream.radioparadise.com/mp3-128" },
+    { name: "Groove Salad",    sub: "chill · SomaFM",          url: "https://ice1.somafm.com/groovesalad-128-mp3" },
+    { name: "Drone Zone",      sub: "ambient · SomaFM",        url: "https://ice1.somafm.com/dronezone-128-mp3" },
+    { name: "Lush",            sub: "vocal chill · SomaFM",    url: "https://ice1.somafm.com/lush-128-mp3" },
+    { name: "Left Coast 70s",  sub: "rock · SomaFM",           url: "https://ice1.somafm.com/seventies-128-mp3", since: 3 },
+    { name: "Sonic Universe",  sub: "avant jazz · SomaFM",     url: "https://ice1.somafm.com/sonicuniverse-128-mp3", since: 3 },
+    { name: "DEF CON Radio",   sub: "electronic · SomaFM",     url: "https://ice1.somafm.com/defcon-128-mp3" },
+    { name: "Christmas Lounge",sub: "seasonal · SomaFM",       url: "https://ice1.somafm.com/christmas-128-mp3" }
+  ];
+
+  /* The live list: a saved copy overrides the built-ins, so users can add,
+     remove or reorder stations without editing the file. */
+  function defaultStations() {
+    return DEFAULT_STATIONS.map(function (s) { return { name: s.name, sub: s.sub, url: s.url }; });
+  }
+  var stations = (function () {
+    try {
+      var saved = JSON.parse(localStorage.getItem("fc.stations"));
+      if (Array.isArray(saved)) return saved;
+    } catch (e) {}
+    return defaultStations();
+  })();
+
+  function saveStations() {
+    localStorage.setItem("fc.stations", JSON.stringify(stations));
+  }
+
+  /* Stations shipped in a later version are merged into an existing saved list
+     once, so an update shows up without wiping the user's own additions or
+     deletions. Bump STATIONS_VERSION and tag new entries with `since`. */
+  var STATIONS_VERSION = 3;
+  (function mergeNewDefaults() {
+    try {
+      if (localStorage.getItem("fc.stationsV") === String(STATIONS_VERSION)) return;
+      DEFAULT_STATIONS.forEach(function (d) {
+        if (d.since !== STATIONS_VERSION) return;
+        var present = stations.some(function (s) { return s.url === d.url; });
+        if (!present) stations.push({ name: d.name, sub: d.sub, url: d.url });
+      });
+      localStorage.setItem("fc.stationsV", String(STATIONS_VERSION));
+      saveStations();
+    } catch (e) {}
+  })();
+
+
+  /* ---------- clock preferences ---------- */
+  var CLOCK_DEFS = [
+    { id:"format",  name:"Time format", values:["24-hour", "12-hour"] },
+    { id:"date",    name:"Date line",   values:["shown", "hidden"] },
+    { id:"size",    name:"Card size",   values:["normal", "large", "huge"], def:"huge" },
+    { id:"seconds", name:"Seconds",     values:["hidden", "shown"] }
+  ];
+  var CLOCK = (function () {
+    try { return JSON.parse(localStorage.getItem("fc.clock") || "{}"); } catch (e) { return {}; }
+  })();
+  /* defaults v2: huge cards replaced normal as the default. Existing installs
+     get it once; a deliberate large/huge choice is left alone. */
+  if (CLOCK.v !== 2) {
+    if (!CLOCK.size || CLOCK.size === "normal") CLOCK.size = "huge";
+    CLOCK.v = 2;
+  }
+  CLOCK_DEFS.forEach(function (d) {
+    if (d.values.indexOf(CLOCK[d.id]) === -1) CLOCK[d.id] = d.def || d.values[0];
+  });
+
+  /* ---------- clock ---------- */
+  function makeGroup(host) {
+    var card = document.createElement("div");
+    card.className = "card";
+    var d = document.createElement("div");
+    d.className = "digit";
+    d.textContent = "0";
+    card.appendChild(d);
+    host.appendChild(card);
+    return d;
+  }
+  var slots = {
+    h1: makeGroup(document.getElementById("h1")),
+    h2: makeGroup(document.getElementById("h2")),
+    m1: makeGroup(document.getElementById("m1")),
+    m2: makeGroup(document.getElementById("m2"))
+  };
+
+  var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  var DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  var colon = document.getElementById("colon");
+  var dateEl = document.getElementById("date");
+  var secsEl = document.getElementById("secs");
+  var lastMinute = -1;
+
+  function setDigit(el, v) {
+    if (el.textContent === v) return;
+    if (el.dataset.init !== "1") { el.textContent = v; el.dataset.init = "1"; return; }
+    el.classList.remove("flip-in");
+    el.classList.add("flip-out");
+    setTimeout(function () {
+      el.textContent = v;
+      el.classList.remove("flip-out");
+      el.classList.add("flip-in");
+    }, 180);
+  }
+
+  function tick() {
+    var now = new Date(), h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+    var h12 = CLOCK.format === "12-hour";
+    var hh = h12 ? (h % 12 || 12) : h;
+
+    if (m !== lastMinute) {
+      lastMinute = m;
+      var hs = (hh < 10 ? "0" : "") + hh;
+      var ms = (m < 10 ? "0" : "") + m;
+      setDigit(slots.h1, hs[0]); setDigit(slots.h2, hs[1]);
+      setDigit(slots.m1, ms[0]); setDigit(slots.m2, ms[1]);
+      var line = DAYS[now.getDay()] + " " + now.getDate() + " " + MONTHS[now.getMonth()];
+      if (h12) line += " \u00b7 " + (h < 12 ? "AM" : "PM");
+      dateEl.textContent = line;
+    }
+    secsEl.textContent = (s < 10 ? ":0" : ":") + s;
+    colon.classList.toggle("dim", s % 2 === 1);
+    document.body.classList.toggle("night", h >= 23 || h < 7);
+  }
+  tick();
+  setInterval(tick, 1000);
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) { lastMinute = -1; tick(); }
+  });
+
+  /* ---------- radio ---------- */
+  var audio    = new Audio();
+  var idx      = parseInt(localStorage.getItem("fc.station") || "0", 10) || 0;
+  var wantPlay = false;
+
+  var playBtn  = document.getElementById("play");
+  var prevBtn  = document.getElementById("prev");
+  var nextBtn  = document.getElementById("next");
+  var nameEl   = document.getElementById("stationName");
+  var subEl    = document.getElementById("stationSub");
+  var dot      = document.getElementById("dot");
+  var vol      = document.getElementById("vol");
+  var hint     = document.getElementById("hint");
+
+  var savedVol = parseInt(localStorage.getItem("fc.volume") || "70", 10);
+  vol.value = savedVol;
+  audio.volume = savedVol / 100;
+
+  function paint() {
+    var s = stations[idx] || { name: "No stations", sub: "add one in Settings" };
+    nameEl.textContent = s.name;
+    subEl.textContent  = s.sub;
+    document.title = "Flip Clock · " + s.name;
+    try { markRows(); } catch (e) {}
+    if ("mediaSession" in navigator) {
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({ title: s.name, artist: s.sub, album: "Radio" });
+      } catch (e) {}
+    }
+  }
+
+  function setState(state) {
+    dot.className = "dot" + (state === "live" ? " live" : state === "err" ? " err" : "");
+    if (state === "live") {
+      playBtn.innerHTML = "&#10074;&#10074;";
+      playBtn.setAttribute("aria-label", "pause");
+      hint.classList.remove("show");
+      subEl.textContent = (stations[idx] || {}).sub || "";
+    } else {
+      playBtn.innerHTML = "&#9654;";
+      playBtn.setAttribute("aria-label", "play");
+      if (state === "err") subEl.textContent = "stream unreachable — try another station";
+    }
+  }
+
+  function start() {
+    wantPlay = true;
+    if (!stations[idx]) { setState("idle"); return; }
+    audio.src = stations[idx].url;
+    var p = audio.play();
+    if (p && p.catch) p.catch(function () { setState("err"); hint.classList.add("show"); });
+  }
+
+  function stop() {
+    wantPlay = false;
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+    setState("idle");
+    subEl.textContent = (stations[idx] || {}).sub || "";
+  }
+
+  playBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    if (wantPlay) stop(); else start();
+  });
+  prevBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    if (!stations.length) return;
+    idx = (idx - 1 + stations.length) % stations.length;
+    localStorage.setItem("fc.station", idx);
+    paint();
+    if (wantPlay) start();
+  });
+  nextBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    if (!stations.length) return;
+    idx = (idx + 1) % stations.length;
+    localStorage.setItem("fc.station", idx);
+    paint();
+    if (wantPlay) start();
+  });
+  vol.addEventListener("input", function () {
+    audio.volume = vol.value / 100;
+    localStorage.setItem("fc.volume", vol.value);
+  });
+
+  audio.addEventListener("playing", function () { setState("live"); });
+  audio.addEventListener("waiting", function () { dot.className = "dot"; });
+  audio.addEventListener("pause",   function () { if (!wantPlay) setState("idle"); });
+  audio.addEventListener("error",   function () { setState("err"); });
+  audio.addEventListener("stalled", function () { dot.className = "dot"; });
+
+  if ("mediaSession" in navigator) {
+    try {
+      navigator.mediaSession.setActionHandler("play",  function () { start(); });
+      navigator.mediaSession.setActionHandler("pause", function () { stop(); });
+      navigator.mediaSession.setActionHandler("nexttrack",     function () { nextBtn.click(); });
+      navigator.mediaSession.setActionHandler("previoustrack", function () { prevBtn.click(); });
+    } catch (e) {}
+  }
+
+  /* ---------- station picker ---------- */
+  var picker     = document.getElementById("picker");
+  var listEl     = document.getElementById("stationList");
+  var metaEl     = document.getElementById("meta");
+  var closeBtn   = document.getElementById("closePicker");
+  var rows       = [];
+
+  function markupRows() {
+    listEl.innerHTML = "";
+    rows = [];
+    stations.forEach(function (s, i) {
+      var row = document.createElement("div");
+      row.className = "row";
+      row.setAttribute("role", "button");
+      row.tabIndex = 0;
+
+      var txt = document.createElement("div");
+      txt.className = "txt";
+      var n = document.createElement("div"); n.className = "n"; n.textContent = s.name;
+      var b = document.createElement("div"); b.className = "s"; b.textContent = s.sub;
+      txt.appendChild(n); txt.appendChild(b);
+
+      var now = document.createElement("div");
+      now.className = "now"; now.textContent = "";
+
+      row.appendChild(txt); row.appendChild(now);
+
+      row.addEventListener("click", function (e) {
+        e.stopPropagation();
+        selectStation(i, true);
+        closePicker();
+      });
+      listEl.appendChild(row);
+      rows.push({ el: row, now: now });
+    });
+    markRows();
+  }
+
+  function markRows() {
+    rows.forEach(function (r, i) {
+      var on = i === idx;
+      r.el.classList.toggle("on", on);
+      r.now.textContent = on ? (wantPlay ? "playing" : "selected") : "";
+    });
+  }
+
+  function selectStation(i, play) {
+    idx = i;
+    localStorage.setItem("fc.station", i);
+    paint();
+    if (wantPlay || play) start(); else markRows();
+  }
+
+  function openPicker() {
+    markRows();
+    picker.classList.add("open");
+    markRows();
+  }
+  function closePicker() {
+    picker.classList.remove("open");
+    markRows();
+  }
+
+  metaEl.addEventListener("click", function (e) {
+    e.stopPropagation();
+    if (picker.classList.contains("open")) closePicker(); else openPicker();
+  });
+  closeBtn.addEventListener("click", function (e) { e.stopPropagation(); closePicker(); });
+  picker.addEventListener("click", function (e) {
+    if (e.target === picker) closePicker();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closePicker();
+  });
+
+  markupRows();
+
+  /* ---------- settings / themes ---------- */
+  var THEMES = [
+    { id:"softblack", name:"Soft Black", sw:["#1d1a16","#e6e2d8","#d9b26a"] },
+    { id:"ivory",     name:"Ivory",      sw:["#1a1713","#faf8f5","#c9a227"] },
+    { id:"oatmeal",   name:"Oatmeal",    sw:["#221c14","#eae0c8","#c8933f"] },
+    { id:"midnight", name:"Midnight",  sw:["#1a1a1c","#f2f2f4","#39b7a8"] },
+    { id:"paper",    name:"Paper",     sw:["#f4f2ea","#1b1b1f","#b0562f"] },
+    { id:"amber",    name:"Amber CRT", sw:["#1d1305","#ffb347","#ff9f1c"] },
+    { id:"ocean",    name:"Ocean",     sw:["#0d1a26","#d8ecff","#2ea8ff"] },
+    { id:"forest",   name:"Forest",    sw:["#0d1a10","#dcf5e0","#52c46a"] },
+    { id:"rose",     name:"Rose",      sw:["#1e0d15","#ffe0ec","#ff5c8a"] },
+    { id:"mono",     name:"Mono",      sw:["#0f0f0f","#ffffff","#ffffff"] }
+  ];
+
+  var settingsEl  = document.getElementById("settings");
+  var cfgBtn      = document.getElementById("cfg");
+  var closeSetBtn = document.getElementById("closeSettings");
+  var themeSel    = document.getElementById("themeSel");
+  var fontSel     = document.getElementById("fontSel");
+  var theme       = localStorage.getItem("fc.theme") || "softblack";
+
+  /* Interface text is a real px size, not a multiplier: 12 px default,
+     +2 px per step. It scales the UI text only, never the clock digits
+     (card size controls those). */
+  var FS_DEFS = [];
+  for (var fsPx = 12; fsPx <= 24; fsPx += 2) {
+    FS_DEFS.push({ id:String(fsPx), name:fsPx + " px" });
+  }
+  var font = localStorage.getItem("fc.fs") || "12";
+
+  function markThemes() { if (themeSel) themeSel.value = theme; }
+
+  function applyTheme(id) {
+    var valid = THEMES.some(function (t) { return t.id === id; });
+    theme = valid ? id : "softblack";
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("fc.theme", theme);
+    markThemes();
+  }
+
+  function applyFont(id) {
+    var valid = FS_DEFS.some(function (f) { return f.id === id; });
+    font = valid ? id : "12";
+    document.documentElement.style.setProperty("--fs", font + "px");
+    localStorage.setItem("fc.fs", font);
+    if (fontSel) fontSel.value = font;
+  }
+
+  function buildSelects() {
+    THEMES.forEach(function (t) {
+      var o = document.createElement("option");
+      o.value = t.id; o.textContent = t.name;
+      themeSel.appendChild(o);
+    });
+    FS_DEFS.forEach(function (f) {
+      var o = document.createElement("option");
+      o.value = f.id; o.textContent = f.name;
+      fontSel.appendChild(o);
+    });
+    themeSel.addEventListener("change", function () { suppressBackdrop(); applyTheme(themeSel.value); });
+    fontSel.addEventListener("change", function () { suppressBackdrop(); applyFont(fontSel.value); });
+    markThemes();
+    fontSel.value = font;
+  }
+
+  /* The Android select dialog closes with a tap that can land on our backdrop
+     and shut the panel immediately, so ignore backdrop clicks for a moment
+     after a dropdown changes. */
+  var lastSelectAt = 0;
+  function suppressBackdrop() { lastSelectAt = Date.now(); }
+
+  function openSettings() { closePicker(); markThemes(); settingsEl.classList.add("open"); }
+  function closeSettings() { settingsEl.classList.remove("open"); }
+
+  cfgBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    if (settingsEl.classList.contains("open")) closeSettings(); else openSettings();
+  });
+  closeSetBtn.addEventListener("click", function (e) { e.stopPropagation(); closeSettings(); });
+  settingsEl.addEventListener("click", function (e) {
+    if (e.target === settingsEl && Date.now() - lastSelectAt > 700) closeSettings();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeSettings();
+    if (e.key === "c" || e.key === "C") {
+      if (settingsEl.classList.contains("open")) closeSettings(); else openSettings();
+    }
+  });
+
+  buildSelects();
+  applyTheme(theme);
+  applyFont(font);
+
+  /* ---------- station management ---------- */
+  var stationsPanel    = document.getElementById("stationsPanel");
+  var manageList       = document.getElementById("manageList");
+  var stationCount     = document.getElementById("stationCount");
+  var openStationsRow  = document.getElementById("openStations");
+  var closeStationsBtn = document.getElementById("closeStations");
+  var newName          = document.getElementById("newName");
+  var newUrl           = document.getElementById("newUrl");
+  var addBtn           = document.getElementById("addStation");
+  var restoreBtn       = document.getElementById("restoreStations");
+
+  function refreshStationsUi() {
+    if (stationCount) {
+      stationCount.textContent = stations.length + (stations.length === 1 ? " station" : " stations");
+    }
+    if (idx >= stations.length) idx = Math.max(0, stations.length - 1);
+    markupRows();
+    paint();
+    markRows();
+  }
+
+  function renderManage() {
+    manageList.innerHTML = "";
+    if (!stations.length) {
+      var empty = document.createElement("div");
+      empty.className = "s";
+      empty.style.cssText = "padding:1.6vh 0;color:var(--dim)";
+      empty.textContent = "No stations left. Add one below, or restore the defaults.";
+      manageList.appendChild(empty);
+      return;
+    }
+    stations.forEach(function (st, i) {
+      var row = document.createElement("div");
+      row.className = "row";
+
+      var txt = document.createElement("div"); txt.className = "txt";
+      var n = document.createElement("div"); n.className = "n"; n.textContent = st.name;
+      var sub = document.createElement("div"); sub.className = "s";
+      sub.textContent = st.sub || String(st.url).replace(/^https?:\/\//, "");
+      txt.appendChild(n); txt.appendChild(sub);
+
+      var del = document.createElement("button");
+      del.className = "del";
+      del.innerHTML = "&#10005;";
+      del.setAttribute("aria-label", "remove " + st.name);
+      del.addEventListener("click", function (e) {
+        e.stopPropagation();
+        removeStation(i);
+      });
+
+      row.appendChild(txt); row.appendChild(del);
+      manageList.appendChild(row);
+    });
+  }
+
+  function removeStation(i) {
+    var wasCurrent = i === idx;
+    var wasPlaying = wantPlay;
+    stations.splice(i, 1);
+    saveStations();
+    if (i < idx) idx--;
+    if (idx >= stations.length) idx = Math.max(0, stations.length - 1);
+    refreshStationsUi();
+    renderManage();
+    if (wasCurrent) {
+      if (wasPlaying && stations.length) start();
+      else stop();
+    }
+  }
+
+  function addStation() {
+    var name = (newName.value || "").trim();
+    var url  = (newUrl.value || "").trim();
+    if (!/^https?:\/\/\S+/i.test(url)) { newUrl.focus(); return; }
+    stations.push({
+      name: name || String(url).replace(/^https?:\/\/(www\.)?/i, "").split("/")[0],
+      sub: "custom",
+      url: url
+    });
+    saveStations();
+    newName.value = "";
+    newUrl.value = "";
+    refreshStationsUi();
+    renderManage();
+  }
+
+  function restoreStations() {
+    stations = defaultStations();
+    saveStations();
+    idx = 0;
+    refreshStationsUi();
+    renderManage();
+  }
+
+  function openStationsPanel() {
+    closeSettings();
+    closePicker();
+    renderManage();
+    stationsPanel.classList.add("open");
+  }
+  function closeStationsPanel() { stationsPanel.classList.remove("open"); }
+
+  openStationsRow.addEventListener("click", function (e) { e.stopPropagation(); openStationsPanel(); });
+  closeStationsBtn.addEventListener("click", function (e) { e.stopPropagation(); closeStationsPanel(); });
+  stationsPanel.addEventListener("click", function (e) {
+    if (e.target === stationsPanel) closeStationsPanel();
+  });
+  addBtn.addEventListener("click", function (e) { e.stopPropagation(); addStation(); });
+  restoreBtn.addEventListener("click", function (e) { e.stopPropagation(); restoreStations(); });
+
+  refreshStationsUi();
+
+  /* ---------- clock option rows ---------- */
+  var clockList  = document.getElementById("clockList");
+  var clockRows  = [];
+
+  function markClockRows() {
+    clockRows.forEach(function (r) {
+      r.now.textContent = String(CLOCK[r.def.id]).replace("-", " ");
+    });
+  }
+
+  function applyClock() {
+    document.body.classList.toggle("nodate",   CLOCK.date === "hidden");
+    document.body.classList.toggle("showsecs", CLOCK.seconds === "shown");
+    document.body.classList.remove("size-large", "size-huge");
+    if (CLOCK.size === "large") document.body.classList.add("size-large");
+    if (CLOCK.size === "huge")  document.body.classList.add("size-huge");
+    localStorage.setItem("fc.clock", JSON.stringify(CLOCK));
+    lastMinute = -1;          /* force the digits to re-render on the next tick */
+    markClockRows();
+  }
+
+  function buildClockRows() {
+    CLOCK_DEFS.forEach(function (d) {
+      var row = document.createElement("div");
+      row.className = "row"; row.tabIndex = 0; row.setAttribute("role", "button");
+
+      var txt = document.createElement("div"); txt.className = "txt";
+      var n = document.createElement("div"); n.className = "n"; n.textContent = d.name;
+      txt.appendChild(n);
+
+      var val = document.createElement("div"); val.className = "now";
+
+      row.appendChild(txt); row.appendChild(val);
+      row.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var i = d.values.indexOf(CLOCK[d.id]);
+        CLOCK[d.id] = d.values[(i + 1) % d.values.length];
+        applyClock();
+        tick();
+      });
+      clockList.appendChild(row);
+      clockRows.push({ def: d, now: val });
+    });
+    markClockRows();
+  }
+
+  buildClockRows();
+  applyClock();
+  tick();
+
+  paint();
+  setState("idle");
+  hint.classList.add("show");
+
+  /* ---------- fullscreen ---------- */
+  var fsBtn = document.getElementById("fs");
+
+  function toggleFullscreen() {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      if (document.exitFullscreen) document.exitFullscreen().catch(function () {});
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      return;
+    }
+    var el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen().catch(function () {});
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  }
+
+  function paintFsIcon() {
+    var on = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    fsBtn.setAttribute("aria-label", on ? "exit fullscreen" : "fullscreen");
+    fsBtn.style.opacity = on ? "0.55" : "1";
+  }
+
+  fsBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    toggleFullscreen();
+  });
+  document.addEventListener("fullscreenchange", paintFsIcon);
+  document.addEventListener("webkitfullscreenchange", paintFsIcon);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "f" || e.key === "F") toggleFullscreen();
+    if (e.key === " " && e.target === document.body) { e.preventDefault(); if (wantPlay) stop(); else start(); }
+  });
+
+  /* Tap the clock: first tap starts the radio, later taps toggle fullscreen.
+     On a 5" panel this is the only reliable hit target. */
+  document.getElementById("stage").addEventListener("click", function () {
+    if (!wantPlay) { start(); return; }
+    toggleFullscreen();
+  });
+
+  /* resume after an accidental pause when the page is still meant to be playing */
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden && wantPlay && audio.paused) start();
+  });
+
+  if (navigator.wakeLock && navigator.wakeLock.request) {
+    navigator.wakeLock.request("screen").catch(function () {});
+  }
+})();
+</script>
+</body>
+</html>
