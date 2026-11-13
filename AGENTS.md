@@ -80,6 +80,7 @@ Manual-only checks (audio playback, fullscreen, wake lock, MediaSession, real de
 
 - `main` tracks `origin` → `git@github.com:mikhailnakanechny/flip-clock-radio.git`.
 - The deployable site is the generated `public/` folder; `public/index.html` is committed so a checkout still has a drop-in page.
-- GitHub Pages must publish `public/` (e.g. a Pages workflow or a branch containing its contents). The repository-root `index.html` is now a Vite template and is **not** servable on its own.
+- GitHub Pages deploys `public/` via `.github/workflows/pages.yml` on every push to `main` (and manually via workflow dispatch). One-time setup: Settings → Pages → Source = **GitHub Actions**. The repository-root `index.html` is a Vite template and is **not** servable on its own.
+- `npm ci` in the workflow depends on `package-lock.json`; keep it committed.
 - Commit subjects: short, imperative, e.g. `Add station manager delete guard`. Commit only when asked; never commit `tmp/` or local scratch files.
 - The code is original and MIT-licensed; stations are third-party links only. Do not add station logos, artwork or bundled audio.

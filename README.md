@@ -79,6 +79,8 @@ npm run preview    # serve the built file
 
 `public/index.html` is committed so a checkout stays drop-in usable. The build targets Chromium 90 (Android 11 WebView) and lands at roughly 28 KB minified (~9 KB gzipped).
 
+GitHub Pages is deployed from `public/` by `.github/workflows/pages.yml` on every push to `main`. The repository-root `index.html` is the Vite source template, not the deployed page; the repo's Pages source must be set to **GitHub Actions** once in Settings → Pages.
+
 ## Configuration
 
 Everything you'd normally change lives at the top of `src/main.js`, inside the IIFE:
