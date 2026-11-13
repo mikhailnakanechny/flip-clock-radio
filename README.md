@@ -81,6 +81,8 @@ npm run preview    # serve the built file
 
 GitHub Pages is deployed from `public/` by `.github/workflows/pages.yml` on every push to `main`. The repository-root `index.html` is the Vite source template, not the deployed page; the repo's Pages source must be set to **GitHub Actions** once in Settings → Pages.
 
+CI (`.github/workflows/ci.yml`) rebuilds on every push and pull request, fails if the committed `public/index.html` does not match the sources, then runs the browser smoke test. Run `npm run build` before committing source changes.
+
 ## Configuration
 
 Everything you'd normally change lives at the top of `src/main.js`, inside the IIFE:

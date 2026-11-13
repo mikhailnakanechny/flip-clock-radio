@@ -57,7 +57,13 @@ function findChrome() {
             "/Applications/Chromium.app/Contents/MacOS/Chromium",
             "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
           ]
-        : ["/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/microsoft-edge"];
+        : [
+            "/usr/bin/google-chrome",
+            "/usr/bin/google-chrome-stable",
+            "/usr/bin/chromium",
+            "/usr/bin/chromium-browser",
+            "/usr/bin/microsoft-edge",
+          ];
   const found = candidates.find((p) => p && fs.existsSync(p));
   if (!found) throw new Error("No Chrome/Edge found. Set CHROME_PATH to a Chromium-based browser.");
   return found;
@@ -183,6 +189,8 @@ async function main() {
       "--no-first-run",
       "--no-default-browser-check",
       "--autoplay-policy=no-user-gesture-required",
+      // GitHub-hosted runners can reject Chrome's sandbox; CI is an ephemeral VM.
+      ...(process.env.CI ? ["--no-sandbox"] : []),
       "--remote-debugging-port=0",
       `--user-data-dir=${profile}`,
       "--window-size=960,480",
