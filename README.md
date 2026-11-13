@@ -2,7 +2,7 @@
 
 A single-file flip clock with an internet-radio player, built for small, old, **1 GB RAM** Android panels used as bedside clocks or Home Assistant kiosk displays.
 
-No build step, no dependencies, no tracking, no external assets — one `index.html` you can drop on any static host.
+The shipped page is one self-contained `index.html` with no runtime dependencies, no tracking and no external assets — drop `public/index.html` on any static host. Sources are split for editing and bundled by Vite.
 
 ![Fullscreen](assets/screenshot-fullscreen.png)
 
@@ -37,24 +37,51 @@ It was written for an **Amazon Echo Show 5 (2nd gen, `C76N8S` / `cronos`)** runn
 
 ## Quick start
 
-It's a static file. Any of these work:
+`public/index.html` is the built, self-contained page — no Node required to use it:
 
 ```bash
 # 1. just open it
-open index.html            # macOS   (start index.html on Windows)
+open public/index.html     # macOS   (start public\index.html on Windows)
 
 # 2. any static server
-python3 -m http.server 8099
+python3 -m http.server 8099 --directory public
 
-# 3. Home Assistant — copy into config/www/ then browse to:
+# 3. Home Assistant — copy public/index.html into config/www/ then browse to:
 #    http://<your-ha>:8123/local/index.html
+```
+
+To change it, build it:
+
+```bash
+npm install        # Vite + esbuild + vite-plugin-singlefile (dev only)
+npm run build      # minified single file -> public/index.html
 ```
 
 For a wall panel, point a kiosk browser (Fully Kiosk Browser is the usual choice) at the URL and enable its keep-screen-on option.
 
+## Development
+
+The sources are split; the build inlines and minifies them back into one file.
+
+| Path | What |
+|---|---|
+| `index.html` | Vite entry: `<head>`, the pre-paint theme/font script, CSS link, markup |
+| `src/styles.css` | all CSS |
+| `src/main.js` | all app logic (one IIFE, no imports) |
+| `public/index.html` | generated single-file build — do not edit |
+| `vite.config.js` | build config (`chrome90` target, everything inlined) |
+
+```bash
+npm run dev        # dev server with reload, http://localhost:5173
+npm run build      # minified single file -> public/index.html
+npm run preview    # serve the built file
+```
+
+`public/index.html` is committed so a checkout stays drop-in usable. The build targets Chromium 90 (Android 11 WebView) and lands at roughly 28 KB minified (~9 KB gzipped).
+
 ## Configuration
 
-Everything you'd normally change lives at the top of the `<script>` block:
+Everything you'd normally change lives at the top of `src/main.js`, inside the IIFE:
 
 ```js
 var STATIONS = [
@@ -63,7 +90,7 @@ var STATIONS = [
 ];
 ```
 
-Add, remove or reorder entries freely — the picker and the arrows are generated from this array.
+Add, remove or reorder entries freely — the picker and the arrows are generated from this array. Run `npm run build` to refresh `public/index.html`.
 
 Notes on stream URLs:
 
@@ -71,7 +98,7 @@ Notes on stream URLs:
 - MP3 and AAC (`.mp3`, Icecast/Shoutcast) both work in the WebView player. HLS (`.m3u8`) does **not** without extra code.
 - Stations that require a session cookie or a Referer header often fail in a plain `<audio>` element.
 
-The night-dimming window is the `h >= 23 || h < 7` test in `tick()`.
+The night-dimming window is the `h >= 23 || h < 7` test in `tick()` in `src/main.js`.
 
 ## Stations
 
@@ -87,7 +114,7 @@ Settings → **Stations** opens the manager. Every station can be removed — th
 
 Details that matter:
 
-- **Nothing is baked in.** The live list is `DEFAULT_STATIONS` copied at first run, then kept in `localStorage` under `fc.stations`. Edit the array in the file to change the shipped defaults; edit them in the app to change your device.
+- **Nothing is baked in.** The live list is `DEFAULT_STATIONS` copied at first run, then kept in `localStorage` under `fc.stations`. Edit the array in `src/main.js` (then rebuild) to change the shipped defaults; edit them in the app to change your device.
 - **New built-in stations reach existing devices.** Entries tagged with `since` are merged into an already-saved list once, keyed by `fc.stationsV`; user-added stations are kept and deletions are not resurrected. When shipping more presets, bump `STATIONS_VERSION` and tag the new entries.
 - **URL validation is minimal on purpose** — anything starting with `http://` or `https://` is accepted, because stream endpoints vary wildly. A wrong URL shows as a red dot and "stream unreachable" rather than being rejected up front.
 - **Deleting the station that is playing** stops playback and falls back to the next one, and the arrows wrap around the shortened list.
@@ -110,7 +137,7 @@ Settings → **Clock** holds four options. Each row cycles through its values wh
 
 ![Clock options in use: 12-hour, seconds, large cards](assets/screenshot-clock-options.png)
 
-Adding a fifth option means one entry in `CLOCK_DEFS` plus a CSS rule keyed off a body class — `applyClock()` toggles the classes and forces a redraw.
+Adding a fifth option means one entry in `CLOCK_DEFS` (`src/main.js`) plus a CSS rule in `src/styles.css` keyed off a body class — `applyClock()` toggles the classes and forces a redraw.
 
 ### Appearance
 
@@ -146,7 +173,7 @@ The gear button opens Settings. Appearance holds a **Theme dropdown** with the t
 | Rose | `#0D0308` | `#FFE0EC` |
 | Mono | `#000000` | `#FFFFFF` |
 
-Each theme is just a block of custom properties, so adding your own is one rule:
+Each theme is just a block of custom properties in `src/styles.css`, so adding your own is one rule:
 
 ```css
 html[data-theme="neon"] {
@@ -155,7 +182,7 @@ html[data-theme="neon"] {
 }
 ```
 
-…then add `{ id:"neon", name:"Neon", sw:["#100524","#f0e6ff","#b96bff"] }` to the `THEMES` array — the swatches in Settings are generated from those three colours.
+…then add `{ id:"neon", name:"Neon", sw:["#100524","#f0e6ff","#b96bff"] }` to the `THEMES` array in `src/main.js` and rebuild — the swatches in Settings are generated from those three colours.
 
 `--ink` is the text colour used on the control bar; light themes need a dark one. Night dimming (23:00–07:00) fades only the clock, so it stays readable across every theme.
 
@@ -193,7 +220,7 @@ These cost real time on the device, so they're documented rather than discovered
 
 ## Credits and third-party notices
 
-**The code is original.** Everything in this repository — the flip animation, layout, player, station picker, night dimming — was written for this project. It bundles no third-party libraries, no web fonts, no icon sets and no images: the page uses system font families and standard browser APIs (`<audio>`, MediaSession, Wake Lock, Fullscreen), which is also why it stays small enough for a 1 GB device.
+**The code is original.** Everything in this repository — the flip animation, layout, player, station picker, night dimming — was written for this project. The built page bundles no third-party libraries, no web fonts, no icon sets and no images: it uses system font families and standard browser APIs (`<audio>`, MediaSession, Wake Lock, Fullscreen), which is also why it stays small enough for a 1 GB device. Vite and esbuild are build-time tools only and are not shipped.
 
 **The stations are not ours.** The stream URLs point at services run by [SomaFM](https://somafm.com/), [Radio France](https://www.radiofrance.fr/) (FIP) and [Radio Paradise](https://radioparadise.com/). This repository stores **only links** — no audio is copied, cached or redistributed — and it is not affiliated with, endorsed by, or sponsored by any of them. Station names are used descriptively to identify the streams. There is deliberately no station artwork or logo in `assets/`.
 

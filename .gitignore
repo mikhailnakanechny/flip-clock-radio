@@ -4,6 +4,10 @@ Thumbs.db
 *.swp
 *~
 
+# dependencies and build cache
+node_modules/
+.vite/
+
 # local scratch
 tmp/
 *.log

@@ -1,0 +1,21 @@
+{
+  "name": "flip-clock-radio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A single-file flip clock with an internet-radio player for low-RAM bedside panels.",
+  "license": "MIT",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "vite": "^8.3.8",
+    "vite-plugin-singlefile": "^2.3.4"
+  }
+}
