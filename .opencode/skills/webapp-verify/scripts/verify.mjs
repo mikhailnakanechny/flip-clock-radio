@@ -49,20 +49,20 @@ function findChrome() {
           path.join(pf86, "Google/Chrome/Application/chrome.exe"),
           path.join(local, "Google/Chrome/Application/chrome.exe"),
           path.join(pf, "Microsoft/Edge/Application/msedge.exe"),
-          path.join(pf86, "Microsoft/Edge/Application/msedge.exe"),
+          path.join(pf86, "Microsoft/Edge/Application/msedge.exe")
         ]
       : process.platform === "darwin"
         ? [
             "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
             "/Applications/Chromium.app/Contents/MacOS/Chromium",
-            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
           ]
         : [
             "/usr/bin/google-chrome",
             "/usr/bin/google-chrome-stable",
             "/usr/bin/chromium",
             "/usr/bin/chromium-browser",
-            "/usr/bin/microsoft-edge",
+            "/usr/bin/microsoft-edge"
           ];
   const found = candidates.find((p) => p && fs.existsSync(p));
   if (!found) throw new Error("No Chrome/Edge found. Set CHROME_PATH to a Chromium-based browser.");
@@ -78,7 +78,7 @@ const TYPES = {
   ".json": "application/json; charset=utf-8",
   ".png": "image/png",
   ".svg": "image/svg+xml",
-  ".ico": "image/x-icon",
+  ".ico": "image/x-icon"
 };
 
 function serve() {
@@ -99,7 +99,9 @@ function serve() {
         res.writeHead(404, { "content-type": "text/plain" }).end("not found");
         return;
       }
-      res.writeHead(200, { "content-type": TYPES[path.extname(file)] || "application/octet-stream" }).end(body);
+      res
+        .writeHead(200, { "content-type": TYPES[path.extname(file)] || "application/octet-stream" })
+        .end(body);
     });
   });
   return new Promise((resolve) => {
@@ -170,7 +172,10 @@ function assert(condition, message) {
 }
 
 function assertEqual(actual, expected, label) {
-  if (actual !== expected) throw new Error(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  if (actual !== expected)
+    throw new Error(
+      `${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`
+    );
 }
 
 async function main() {
@@ -194,9 +199,9 @@ async function main() {
       "--remote-debugging-port=0",
       `--user-data-dir=${profile}`,
       "--window-size=960,480",
-      "about:blank",
+      "about:blank"
     ],
-    { stdio: ["ignore", "ignore", "pipe"] },
+    { stdio: ["ignore", "ignore", "pipe"] }
   );
 
   const cleanup = () => {
@@ -248,7 +253,9 @@ async function main() {
   cdp.on((msg) => {
     if (msg.sessionId !== sessionId) return;
     if (msg.method === "Runtime.exceptionThrown") {
-      consoleErrors.push(msg.params.exceptionDetails.exception?.description || msg.params.exceptionDetails.text);
+      consoleErrors.push(
+        msg.params.exceptionDetails.exception?.description || msg.params.exceptionDetails.text
+      );
     }
     if (msg.method === "Runtime.consoleAPICalled" && msg.params.type === "error") {
       consoleErrors.push(msg.params.args.map((a) => a.value ?? a.description ?? "").join(" "));
@@ -267,10 +274,12 @@ async function main() {
       expression,
       returnByValue: true,
       awaitPromise: true,
-      userGesture: true,
+      userGesture: true
     });
     if (result.exceptionDetails) {
-      throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
+      throw new Error(
+        result.exceptionDetails.exception?.description || result.exceptionDetails.text
+      );
     }
     return result.result.value;
   };
@@ -285,7 +294,12 @@ async function main() {
   };
 
   const setViewport = (width, height) =>
-    send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
+    send("Emulation.setDeviceMetricsOverride", {
+      width,
+      height,
+      deviceScaleFactor: 1,
+      mobile: false
+    });
 
   const load = async () => {
     const loaded = waitForEvent("Page.loadEventFired");
@@ -314,7 +328,9 @@ async function main() {
       return el.value; })()`);
 
   const key = (keyName) =>
-    evaluate(`document.dispatchEvent(new KeyboardEvent("keydown", { key: ${JSON.stringify(keyName)}, bubbles: true }))`);
+    evaluate(
+      `document.dispatchEvent(new KeyboardEvent("keydown", { key: ${JSON.stringify(keyName)}, bubbles: true }))`
+    );
 
   const storage = (keyName) => evaluate(`localStorage.getItem(${JSON.stringify(keyName)})`);
 
@@ -327,23 +343,39 @@ async function main() {
     });
 
     await check("four flip cards render digits", async () => {
-      const digits = await evaluate(`[...document.querySelectorAll(".digit")].map((d) => d.textContent)`);
+      const digits = await evaluate(
+        `[...document.querySelectorAll(".digit")].map((d) => d.textContent)`
+      );
       assertEqual(digits.length, 4, "digit count");
-      assert(digits.every((d) => /^\d$/.test(d)), `digits not numeric: ${JSON.stringify(digits)}`);
+      assert(
+        digits.every((d) => /^\d$/.test(d)),
+        `digits not numeric: ${JSON.stringify(digits)}`
+      );
     });
 
     await check("date line is filled", async () => {
       const text = await evaluate(`document.getElementById("date").textContent`);
-      assert(/^(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday) \d{1,2} [A-Z][a-z]+/.test(text), `date line: ${text}`);
+      assert(
+        /^(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday) \d{1,2} [A-Z][a-z]+/.test(
+          text
+        ),
+        `date line: ${text}`
+      );
     });
 
     await check("defaults: Soft Black theme and 12 px UI", async () => {
       assertEqual(await evaluate(`document.documentElement.dataset.theme`), "softblack", "theme");
-      assertEqual(await evaluate(`getComputedStyle(document.documentElement).getPropertyValue("--fs").trim()`), "12px", "font size");
+      assertEqual(
+        await evaluate(
+          `getComputedStyle(document.documentElement).getPropertyValue("--fs").trim()`
+        ),
+        "12px",
+        "font size"
+      );
       assertEqual(
         await evaluate(`getComputedStyle(document.body).backgroundColor`),
         "rgb(20, 19, 17)",
-        "soft black background",
+        "soft black background"
       );
     });
 
@@ -353,45 +385,80 @@ async function main() {
         const clock = document.querySelector(".clock").getBoundingClientRect();
         return { playerBottom: player.bottom, clockTop: clock.top, clockWidth: clock.width, width: innerWidth };
       })()`);
-      assert(boxes.clockTop >= boxes.playerBottom - 1, `clock top ${boxes.clockTop} is under player bottom ${boxes.playerBottom}`);
-      assert(boxes.clockWidth <= boxes.width, `clock overflows viewport: ${boxes.clockWidth} > ${boxes.width}`);
+      assert(
+        boxes.clockTop >= boxes.playerBottom - 1,
+        `clock top ${boxes.clockTop} is under player bottom ${boxes.playerBottom}`
+      );
+      assert(
+        boxes.clockWidth <= boxes.width,
+        `clock overflows viewport: ${boxes.clockWidth} > ${boxes.width}`
+      );
     });
 
     await check("idle state shows the tap hint", async () => {
-      assert(await evaluate(`document.getElementById("hint").classList.contains("show")`), "hint not shown");
+      assert(
+        await evaluate(`document.getElementById("hint").classList.contains("show")`),
+        "hint not shown"
+      );
       assertEqual(await evaluate(`document.getElementById("dot").className`), "dot", "stream dot");
     });
 
     await check("settings open and close from the gear", async () => {
       await click("#cfg");
-      assert(await evaluate(`document.getElementById("settings").classList.contains("open")`), "settings did not open");
+      assert(
+        await evaluate(`document.getElementById("settings").classList.contains("open")`),
+        "settings did not open"
+      );
       await click("#closeSettings");
-      assert(!(await evaluate(`document.getElementById("settings").classList.contains("open")`)), "settings did not close");
+      assert(
+        !(await evaluate(`document.getElementById("settings").classList.contains("open")`)),
+        "settings did not close"
+      );
     });
 
     await check("theme switch applies and persists", async () => {
       await click("#cfg");
       await setSelect("#themeSel", "paper");
-      assertEqual(await evaluate(`document.documentElement.dataset.theme`), "paper", "theme attribute");
+      assertEqual(
+        await evaluate(`document.documentElement.dataset.theme`),
+        "paper",
+        "theme attribute"
+      );
       assertEqual(await storage("fc.theme"), "paper", "fc.theme");
       assertEqual(
-        await evaluate(`getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()`),
+        await evaluate(
+          `getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()`
+        ),
         "#d9d6cc",
-        "paper --bg",
+        "paper --bg"
       );
       await sleep(450); // background has a .35s transition; let it settle before reading the painted colour
-      assertEqual(await evaluate(`getComputedStyle(document.body).backgroundColor`), "rgb(217, 214, 204)", "paper background");
+      assertEqual(
+        await evaluate(`getComputedStyle(document.body).backgroundColor`),
+        "rgb(217, 214, 204)",
+        "paper background"
+      );
       await setSelect("#themeSel", "softblack");
       await click("#closeSettings");
     });
 
     await check("font size scales UI text but not clock digits", async () => {
-      const digitBefore = await evaluate(`getComputedStyle(document.querySelector(".digit")).fontSize`);
+      const digitBefore = await evaluate(
+        `getComputedStyle(document.querySelector(".digit")).fontSize`
+      );
       await click("#cfg");
       await setSelect("#fontSel", "24");
-      assertEqual(await evaluate(`getComputedStyle(document.documentElement).getPropertyValue("--fs").trim()`), "24px", "--fs");
+      assertEqual(
+        await evaluate(
+          `getComputedStyle(document.documentElement).getPropertyValue("--fs").trim()`
+        ),
+        "24px",
+        "--fs"
+      );
       assertEqual(await storage("fc.fs"), "24", "fc.fs");
-      const digitAfter = await evaluate(`getComputedStyle(document.querySelector(".digit")).fontSize`);
+      const digitAfter = await evaluate(
+        `getComputedStyle(document.querySelector(".digit")).fontSize`
+      );
       assertEqual(digitAfter, digitBefore, "digit font-size must not follow --fs");
       await setSelect("#fontSel", "12");
       await click("#closeSettings");
@@ -404,60 +471,114 @@ async function main() {
 
       await evaluate(`${rows}[0].click()`);
       assertEqual(JSON.parse(await storage("fc.clock")).format, "12-hour", "12-hour persisted");
-      assert(await evaluate(`/ · (AM|PM)$/.test(document.getElementById("date").textContent)`), "date line missing AM/PM");
+      assert(
+        await evaluate(`/ · (AM|PM)$/.test(document.getElementById("date").textContent)`),
+        "date line missing AM/PM"
+      );
       await evaluate(`${rows}[0].click()`);
       assertEqual(JSON.parse(await storage("fc.clock")).format, "24-hour", "24-hour persisted");
 
       await evaluate(`${rows}[3].click()`);
-      assert(await evaluate(`getComputedStyle(document.getElementById("secs")).display !== "none"`), "seconds hidden");
-      assert(await evaluate(`/^:\\d\\d$/.test(document.getElementById("secs").textContent)`), "seconds text malformed");
+      assert(
+        await evaluate(`getComputedStyle(document.getElementById("secs")).display !== "none"`),
+        "seconds hidden"
+      );
+      assert(
+        await evaluate(`/^:\\d\\d$/.test(document.getElementById("secs").textContent)`),
+        "seconds text malformed"
+      );
       await evaluate(`${rows}[3].click()`);
 
       // huge (default) -> normal -> large -> huge
       await evaluate(`${rows}[2].click()`);
       assert(
-        !(await evaluate(`document.body.classList.contains("size-huge") || document.body.classList.contains("size-large")`)),
-        "normal card size not applied",
+        !(await evaluate(
+          `document.body.classList.contains("size-huge") || document.body.classList.contains("size-large")`
+        )),
+        "normal card size not applied"
       );
       await evaluate(`${rows}[2].click()`);
-      assert(await evaluate(`document.body.classList.contains("size-large")`), "large card size not applied");
+      assert(
+        await evaluate(`document.body.classList.contains("size-large")`),
+        "large card size not applied"
+      );
       await evaluate(`${rows}[2].click()`);
-      assert(await evaluate(`document.body.classList.contains("size-huge")`), "huge card size not applied");
+      assert(
+        await evaluate(`document.body.classList.contains("size-huge")`),
+        "huge card size not applied"
+      );
       await click("#closeSettings");
     });
 
     await check("station picker opens, lists and closes", async () => {
       await click("#meta");
-      assert(await evaluate(`document.getElementById("picker").classList.contains("open")`), "picker did not open");
-      assertEqual(await evaluate(`document.querySelectorAll("#stationList .row").length`), 11, "picker rows");
+      assert(
+        await evaluate(`document.getElementById("picker").classList.contains("open")`),
+        "picker did not open"
+      );
+      assertEqual(
+        await evaluate(`document.querySelectorAll("#stationList .row").length`),
+        11,
+        "picker rows"
+      );
       await key("Escape");
-      assert(!(await evaluate(`document.getElementById("picker").classList.contains("open")`)), "Escape did not close picker");
+      assert(
+        !(await evaluate(`document.getElementById("picker").classList.contains("open")`)),
+        "Escape did not close picker"
+      );
     });
 
     await check("station manager adds, deletes and restores stations", async () => {
       await click("#cfg");
       await click("#openStations");
-      assert(await evaluate(`document.getElementById("stationsPanel").classList.contains("open")`), "manager did not open");
-      assertEqual(await evaluate(`document.getElementById("stationCount").textContent`), "11 stations", "initial count");
+      assert(
+        await evaluate(`document.getElementById("stationsPanel").classList.contains("open")`),
+        "manager did not open"
+      );
+      assertEqual(
+        await evaluate(`document.getElementById("stationCount").textContent`),
+        "11 stations",
+        "initial count"
+      );
 
       await evaluate(`document.getElementById("newName").value = "Test Station"`);
       await evaluate(`document.getElementById("newUrl").value = "https://example.com/stream.mp3"`);
       await click("#addStation");
-      assertEqual(await evaluate(`document.getElementById("stationCount").textContent`), "12 stations", "count after add");
+      assertEqual(
+        await evaluate(`document.getElementById("stationCount").textContent`),
+        "12 stations",
+        "count after add"
+      );
       assert(
         (await storage("fc.stations")).includes("Test Station"),
-        "added station not persisted",
+        "added station not persisted"
       );
 
       await evaluate(`[...document.querySelectorAll("#manageList .del")].at(-1).click()`);
-      assertEqual(await evaluate(`document.getElementById("stationCount").textContent`), "11 stations", "count after delete");
+      assertEqual(
+        await evaluate(`document.getElementById("stationCount").textContent`),
+        "11 stations",
+        "count after delete"
+      );
 
       await evaluate(`document.querySelector("#manageList .del").click()`);
-      assertEqual(await evaluate(`document.getElementById("stationCount").textContent`), "10 stations", "count after deleting FIP");
+      assertEqual(
+        await evaluate(`document.getElementById("stationCount").textContent`),
+        "10 stations",
+        "count after deleting FIP"
+      );
 
       await click("#restoreStations");
-      assertEqual(await evaluate(`document.getElementById("stationCount").textContent`), "11 stations", "count after restore");
-      assertEqual(await evaluate(`document.querySelector("#manageList .n").textContent`), "FIP", "first station after restore");
+      assertEqual(
+        await evaluate(`document.getElementById("stationCount").textContent`),
+        "11 stations",
+        "count after restore"
+      );
+      assertEqual(
+        await evaluate(`document.querySelector("#manageList .n").textContent`),
+        "FIP",
+        "first station after restore"
+      );
       await click("#closeStations");
     });
 
@@ -467,8 +588,18 @@ async function main() {
       await setSelect("#fontSel", "14");
       await click("#closeSettings");
       await reload();
-      assertEqual(await evaluate(`document.documentElement.dataset.theme`), "paper", "theme after reload");
-      assertEqual(await evaluate(`getComputedStyle(document.documentElement).getPropertyValue("--fs").trim()`), "14px", "font after reload");
+      assertEqual(
+        await evaluate(`document.documentElement.dataset.theme`),
+        "paper",
+        "theme after reload"
+      );
+      assertEqual(
+        await evaluate(
+          `getComputedStyle(document.documentElement).getPropertyValue("--fs").trim()`
+        ),
+        "14px",
+        "font after reload"
+      );
       await click("#cfg");
       await setSelect("#themeSel", "softblack");
       await setSelect("#fontSel", "12");
@@ -482,9 +613,19 @@ async function main() {
         const clock = document.querySelector(".clock").getBoundingClientRect();
         return { scrollWidth: document.documentElement.scrollWidth, innerWidth, clockWidth: clock.width };
       })()`);
-      assert(boxes.scrollWidth <= boxes.innerWidth + 1, `horizontal overflow: ${boxes.scrollWidth} > ${boxes.innerWidth}`);
-      assert(boxes.clockWidth <= boxes.innerWidth, `clock wider than viewport: ${boxes.clockWidth}`);
-      assertEqual(await evaluate(`document.querySelectorAll(".digit").length`), 4, "digits in portrait");
+      assert(
+        boxes.scrollWidth <= boxes.innerWidth + 1,
+        `horizontal overflow: ${boxes.scrollWidth} > ${boxes.innerWidth}`
+      );
+      assert(
+        boxes.clockWidth <= boxes.innerWidth,
+        `clock wider than viewport: ${boxes.clockWidth}`
+      );
+      assertEqual(
+        await evaluate(`document.querySelectorAll(".digit").length`),
+        4,
+        "digits in portrait"
+      );
     });
 
     await check("no console errors during the run", async () => {
@@ -496,11 +637,17 @@ async function main() {
       await setViewport(960, 480);
       await reload();
       const landscape = await send("Page.captureScreenshot", { format: "png" });
-      fs.writeFileSync(path.join(OUT_DIR, "verify-960x480.png"), Buffer.from(landscape.data, "base64"));
+      fs.writeFileSync(
+        path.join(OUT_DIR, "verify-960x480.png"),
+        Buffer.from(landscape.data, "base64")
+      );
       await setViewport(390, 844);
       await reload();
       const portrait = await send("Page.captureScreenshot", { format: "png" });
-      fs.writeFileSync(path.join(OUT_DIR, "verify-390x844.png"), Buffer.from(portrait.data, "base64"));
+      fs.writeFileSync(
+        path.join(OUT_DIR, "verify-390x844.png"),
+        Buffer.from(portrait.data, "base64")
+      );
     }
   } finally {
     cdp.close();

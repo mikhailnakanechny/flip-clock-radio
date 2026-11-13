@@ -1,0 +1,24 @@
+﻿/* mobile / portrait phones */
+@media (max-aspect-ratio: 1/1) {
+  .card {
+    width: 36vw;
+    height: 26vh;
+  }
+  .digit {
+    font-size: 20vh;
+  }
+  .colon {
+    width: 7vw;
+    gap: 3vh;
+  }
+  .colon i {
+    width: 2.4vw;
+    height: 2.4vw;
+  }
+  .clock {
+    gap: 2.5vw;
+  }
+  .group {
+    gap: 2vw;
+  }
+}

@@ -6,22 +6,34 @@ Single-page bedside clock + internet-radio player for a 1 GB Android panel (Echo
 
 - **Ship one file, author in three.** `npm run build` must produce a single `public/index.html` with CSS and JS inlined and no external requests. No runtime dependencies, CDNs, web fonts, icon fonts or images. `assets/` holds README screenshots only. Build tooling lives in `package.json`; never edit `public/index.html` by hand.
 - **Target an old Chromium WebView** (LineageOS 18.1 / Android 11, 1 GB RAM). Prefer fast and small over clever. `vite.config.js` sets `build.target: "chrome90"` — keep it. Nothing is fetched at runtime except radio streams — no analytics, no external calls.
-- **Match the existing JS style** in `src/main.js`: one IIFE, `"use strict"`, `var`, `function`, no arrow functions, template literals or imports. The file is loaded as a module only so Vite can bundle it.
+- **Match the existing JS style** in `src/`: `"use strict"` in the entry, `var`, `function`, no arrow functions and no template literals. Source is split into ES modules (imports/exports) so Vite can bundle it, but the shipped artifact remains one inlined file.
 - **The pre-paint script in the entry `index.html` must stay inline in `<head>` and before the module script.** It applies the saved theme and font size before first paint so a light theme never flashes dark. Never move it into `src/` or defer it.
 - **`textContent` for anything user-supplied** (station names, URLs). `innerHTML` only for fixed entity/icon strings.
 - Preserve accessibility: `aria-label` on icon buttons, `role="button"` + `tabIndex=0` on clickable rows, keyboard shortcuts (`Space`, `f`, `c`, `Esc`).
 
 ## Source layout
 
-| Path | Contents |
-|---|---|
-| `index.html` | Vite entry: meta tags, the inline theme/font pre-paint script, `<link rel="stylesheet" href="/src/styles.css">`, body markup, `<script type="module" src="/src/main.js">` |
-| `src/styles.css` | All CSS — theme blocks (`html[data-theme="…"]` with the nine colour vars), layout, player bar, panels, portrait media query |
-| `src/main.js` | The app IIFE (no imports) |
-| `public/index.html` | Generated single-file build; deploy this, never edit it |
-| `vite.config.js` | `outDir: "public"`, `target: "chrome90"`, single-file inlining |
+| Path                     | Contents                                                                                                                                                                  |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.html`             | Vite entry: meta tags, the inline theme/font pre-paint script, `<link rel="stylesheet" href="/src/styles.css">`, body markup, `<script type="module" src="/src/main.js">` |
+| `src/styles.css`         | CSS entry that imports split style modules                                                                                                                                |
+| `src/styles/base.css`    | Shared variables/themes, layout, components                                                                                                                               |
+| `src/styles/mobile.css`  | Mobile/portrait-specific styles                                                                                                                                           |
+| `src/styles/tablet.css`  | Tablet-specific styles                                                                                                                                                    |
+| `src/styles/desktop.css` | Desktop-specific styles                                                                                                                                                   |
+| `src/main.js`            | Entry module: wires state, clock, radio, picker, appearance, panels, fullscreen/wake lock                                                                                 |
+| `src/stations-data.js`   | Default station list and clone helper                                                                                                                                     |
+| `src/stations-store.js`  | Station persistence, version constant, and one-shot default merge                                                                                                         |
+| `src/clock-store.js`     | Clock option definitions, load/save, migrations/defaults                                                                                                                  |
+| `src/clock.js`           | Clock DOM rendering, flip animation, tick/night dimming, apply clock classes                                                                                              |
+| `src/radio.js`           | Audio player, transport, volume, MediaSession, resume-on-visible                                                                                                          |
+| `src/station-picker.js`  | Station picker panel rows and open/close behavior                                                                                                                         |
+| `src/appearance.js`      | Theme/font selects, persistence, backdrop guard                                                                                                                           |
+| `src/panels.js`          | Settings/stations/clock option panels and station management                                                                                                              |
+| `public/index.html`      | Generated single-file build; deploy this, never edit it                                                                                                                   |
+| `vite.config.js`         | `outDir: "public"`, `target: "chrome90"`, single-file inlining                                                                                                            |
 
-`src/main.js`, in order: default stations + persistence/merge → clock preferences → clock rendering/`tick()` → radio/MediaSession → station picker → settings/themes/font → station manager → clock option rows → fullscreen/wake lock.
+Flow: `main.js` loads/merges station and clock state, initializes radio/clock/picker/appearance/panels, then wires global keys, fullscreen, stage tap, and wake lock. Keep shared behavior (stopPropagation, picker/select guards, flip timing, night dimming, `textContent` for user data) intact when editing modules.
 
 Theme contract: themes set only `--bg --card --card-edge --digit --dim --seam --accent --bar --ink`. `--fs` is interface text in px, `--bar-h` derives from it, `--btn`/`--dt` scale buttons and the date. Sizing is `vh`/`vw` because the target is a fixed 960×480 panel.
 
@@ -29,15 +41,15 @@ Body classes: `size-large`, `size-huge`, `nodate`, `showsecs`, `night`. `<html>`
 
 ## State (`localStorage`)
 
-| Key | Shape | Notes |
-|---|---|---|
-| `fc.theme` | `THEMES` id, default `softblack` | read by the pre-paint script |
-| `fc.fs` | `"12"` … `"24"` (even), default `12` | interface px, not the digits |
-| `fc.stations` | JSON array of `{name, sub, url}` | overrides `DEFAULT_STATIONS` once saved |
-| `fc.stationsV` | `STATIONS_VERSION` string | one-shot merge guard for new presets |
-| `fc.clock` | JSON `{format, date, size, seconds, v}` | `v:2` = huge cards became the default |
-| `fc.station` | current station index | clamped when the list shrinks |
-| `fc.volume` | `0`–`100` | applied to `audio.volume` |
+| Key            | Shape                                   | Notes                                   |
+| -------------- | --------------------------------------- | --------------------------------------- |
+| `fc.theme`     | `THEMES` id, default `softblack`        | read by the pre-paint script            |
+| `fc.fs`        | `"12"` … `"24"` (even), default `12`    | interface px, not the digits            |
+| `fc.stations`  | JSON array of `{name, sub, url}`        | overrides `DEFAULT_STATIONS` once saved |
+| `fc.stationsV` | `STATIONS_VERSION` string               | one-shot merge guard for new presets    |
+| `fc.clock`     | JSON `{format, date, size, seconds, v}` | `v:2` = huge cards became the default   |
+| `fc.station`   | current station index                   | clamped when the list shrinks           |
+| `fc.volume`    | `0`–`100`                               | applied to `audio.volume`               |
 
 Versioned migrations: when changing shipped defaults, add a `since`/`v` bump rather than silently overwriting saved state (see `STATIONS_VERSION` and `CLOCK.v`).
 
@@ -45,9 +57,9 @@ Versioned migrations: when changing shipped defaults, add a `since`/`v` bump rat
 
 Detailed steps live in the `flip-clock-dev` skill. Short version:
 
-- **Theme** → CSS block in `src/styles.css` with all nine vars + `THEMES` entry in `src/main.js` (`sw` = card/digit/accent) + README table. Light themes need a dark `--ink`.
-- **Clock option** → `CLOCK_DEFS` entry in `src/main.js` + CSS keyed off a body class + `applyClock()` + README table.
-- **Preset station** → `DEFAULT_STATIONS` entry in `src/main.js` with `since: N` + bump `STATIONS_VERSION` + README if the list changes materially.
+- **Theme** → CSS block in `src/styles/base.css` with all nine vars + `THEMES` entry in `src/appearance.js` (`sw` = card/digit/accent) + README table. Light themes need a dark `--ink`.
+- **Clock option** → `CLOCK_DEFS` entry in `src/clock-store.js` + CSS keyed off a body class + `applyClock()` in `src/clock.js`/panel wiring + README table.
+- **Preset station** → `DEFAULT_STATIONS` entry in `src/stations-data.js` with `since: N` + bump `STATIONS_VERSION` in `src/stations-store.js` + README if the list changes materially.
 - **UI/behaviour** → keep README features, controls, gotchas tables in sync.
 
 ## Pitfalls that cost real time
@@ -66,6 +78,8 @@ npm install            # dev tooling only (PowerShell: npm.cmd)
 npm run dev            # Vite dev server, http://localhost:5173
 npm run build          # minified single file -> public/index.html
 npm run preview        # serve the built public/
+npm run format         # format sources/docs/config with Prettier
+npm run format:check   # verify formatting
 
 # UI smoke test: 15 checks, headless Chrome via CDP — run the build first
 node .opencode/skills/webapp-verify/scripts/verify.mjs

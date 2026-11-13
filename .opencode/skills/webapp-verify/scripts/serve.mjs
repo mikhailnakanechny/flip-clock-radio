@@ -27,7 +27,7 @@ const TYPES = {
   ".json": "application/json; charset=utf-8",
   ".png": "image/png",
   ".svg": "image/svg+xml",
-  ".ico": "image/x-icon",
+  ".ico": "image/x-icon"
 };
 
 http
@@ -37,7 +37,10 @@ http
       res.writeHead(204).end();
       return;
     }
-    const file = path.resolve(WEB_ROOT, urlPath === "/" ? "index.html" : urlPath.replace(/^\/+/, ""));
+    const file = path.resolve(
+      WEB_ROOT,
+      urlPath === "/" ? "index.html" : urlPath.replace(/^\/+/, "")
+    );
     if (file !== WEB_ROOT && !file.startsWith(WEB_ROOT + path.sep)) {
       res.writeHead(403).end("forbidden");
       return;
@@ -47,7 +50,9 @@ http
         res.writeHead(404, { "content-type": "text/plain" }).end("not found");
         return;
       }
-      res.writeHead(200, { "content-type": TYPES[path.extname(file)] || "application/octet-stream" }).end(body);
+      res
+        .writeHead(200, { "content-type": TYPES[path.extname(file)] || "application/octet-stream" })
+        .end(body);
     });
   })
   .listen(PORT, "127.0.0.1", () => {

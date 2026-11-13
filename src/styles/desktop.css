@@ -1,0 +1,13 @@
+﻿/* desktop: 1024px+ */
+@media (min-width: 1024px) {
+  .stage {
+    gap: 2.4vh;
+  }
+  .picker {
+    padding-left: 10vw;
+    padding-right: 10vw;
+  }
+  .row:hover {
+    border-color: #2a2a30;
+  }
+}

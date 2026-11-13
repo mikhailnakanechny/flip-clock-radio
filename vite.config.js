@@ -11,7 +11,7 @@ export default defineConfig({
     target: "chrome90",
     minify: "esbuild",
     cssMinify: true,
-    sourcemap: false,
+    sourcemap: false
   },
-  plugins: [viteSingleFile()],
+  plugins: [viteSingleFile()]
 });
