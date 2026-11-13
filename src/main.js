@@ -60,6 +60,23 @@ import { initPanels } from "./panels.js";
   radio.setState("idle");
   radio.hint.classList.add("show");
 
+  var playerEl = document.getElementById("player");
+  function syncBarHeight() {
+    if (!playerEl) return;
+    var h = playerEl.offsetHeight || 0;
+    if (h > 0) document.documentElement.style.setProperty("--bar-h", h + "px");
+  }
+  syncBarHeight();
+  window.addEventListener("resize", syncBarHeight);
+  if (typeof ResizeObserver !== "undefined" && playerEl) {
+    try {
+      new ResizeObserver(syncBarHeight).observe(playerEl);
+    } catch (e) {}
+  }
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) syncBarHeight();
+  });
+
   /* ---------- fullscreen ---------- */
   var fsBtn = document.getElementById("fs");
 

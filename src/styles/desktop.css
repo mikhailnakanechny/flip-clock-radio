@@ -1,13 +1,94 @@
-﻿/* desktop: 1024px+ */
-@media (min-width: 1024px) {
+﻿/* desktop: landscape/wide screens 1024px+ */
+@media (min-width: 1024px) and (min-aspect-ratio: 1/1) {
+  body {
+    align-items: center;
+  }
   .stage {
-    gap: 2.4vh;
+    gap: 16px;
+    width: 100%;
+    max-width: 900px;
+    height: min(600px, calc(100vh - var(--bar-h) - 24px));
+    max-height: 600px;
+    margin: 0 auto;
+  }
+  .clock {
+    gap: 14px;
+  }
+  .group {
+    gap: 10px;
+  }
+  .card {
+    width: 120px;
+    height: min(220px, 34vh);
+  }
+  .digit {
+    font-size: min(170px, 26vh);
+  }
+  body.size-large .card {
+    width: 135px;
+    height: min(240px, 37vh);
+  }
+  body.size-large .digit {
+    font-size: min(185px, 28vh);
+  }
+  body.size-huge .card {
+    width: 150px;
+    height: min(255px, 39vh);
+  }
+  body.size-huge .digit {
+    font-size: min(195px, 30vh);
+  }
+  .colon {
+    width: 28px;
+    gap: 24px;
+  }
+  .colon i {
+    width: 10px;
+    height: 10px;
+  }
+  .date {
+    font-size: calc(18px * var(--dt));
+  }
+  .secs {
+    font-size: 14px;
+  }
+  .player {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 900px;
+    gap: 8px;
+    padding: 6px 12px;
+  }
+  .btn {
+    width: 40px;
+    height: 40px;
+    min-width: 32px;
+    min-height: 32px;
+    font-size: 16px;
+  }
+  .btn svg {
+    width: 16px;
+    height: 16px;
+  }
+  input[type="range"] {
+    width: 120px;
+    min-width: 72px;
+    height: 6px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    min-height: 14px;
   }
   .picker {
-    padding-left: 10vw;
-    padding-right: 10vw;
+    padding-left: max(10vw, calc((100vw - 900px) / 2));
+    padding-right: max(10vw, calc((100vw - 900px) / 2));
   }
-  .row:hover {
-    border-color: #2a2a30;
+  .row:hover,
+  .row:focus-visible {
+    border-color: var(--control-bg-hover);
   }
 }

@@ -1,7 +1,25 @@
-﻿/* tablet: 600px–1023px */
-@media (min-width: 600px) and (max-width: 1023px) {
+﻿/* tablet and small landscape screens */
+@media (min-aspect-ratio: 1/1) and (max-width: 1023px) {
   .card {
     width: 16vw;
+    height: 40vh;
+  }
+  .digit {
+    font-size: 31vh;
+  }
+  body.size-large .card {
+    width: 17vw;
+    height: 42vh;
+  }
+  body.size-large .digit {
+    font-size: 33vh;
+  }
+  body.size-huge .card {
+    width: 18vw;
+    height: 44vh;
+  }
+  body.size-huge .digit {
+    font-size: 34vh;
   }
   .player {
     padding: 1vh 2.4vw;

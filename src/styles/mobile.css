@@ -1,24 +1,58 @@
-﻿/* mobile / portrait phones */
-@media (max-aspect-ratio: 1/1) {
+﻿/* mobile: portrait/narrow screens */
+@media (max-aspect-ratio: 1/1) and (max-width: 599px) {
   .card {
-    width: 36vw;
+    width: 20vw;
     height: 26vh;
   }
   .digit {
+    font-size: 18vh;
+  }
+  body.size-large .card {
+    width: 21vw;
+    height: 28vh;
+  }
+  body.size-large .digit {
+    font-size: 19vh;
+  }
+  body.size-huge .card {
+    width: 22vw;
+    height: 30vh;
+  }
+  body.size-huge .digit {
     font-size: 20vh;
   }
   .colon {
-    width: 7vw;
+    width: 6vw;
     gap: 3vh;
   }
   .colon i {
-    width: 2.4vw;
-    height: 2.4vw;
+    width: 2vw;
+    height: 2vw;
   }
   .clock {
-    gap: 2.5vw;
+    gap: 1.5vw;
   }
   .group {
-    gap: 2vw;
+    gap: 1vw;
+  }
+  .player {
+    gap: 6px 8px;
+    padding: 8px 10px;
+  }
+  .btn {
+    width: 40px;
+    height: 40px;
+    min-width: 34px;
+    min-height: 34px;
+    max-width: 44px;
+    max-height: 44px;
+    font-size: 16px;
+  }
+  .meta {
+    order: 10;
+    flex: 1 0 100%;
+  }
+  input[type="range"] {
+    display: none;
   }
 }

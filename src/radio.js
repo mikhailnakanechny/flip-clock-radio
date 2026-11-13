@@ -8,9 +8,11 @@
   var nextBtn = document.getElementById("next");
   var nameEl = document.getElementById("stationName");
   var subEl = document.getElementById("stationSub");
+  var songEl = document.getElementById("stationSong");
   var dot = document.getElementById("dot");
   var vol = document.getElementById("vol");
   var hint = document.getElementById("hint");
+  var currentSong = "";
 
   var savedVol = parseInt(localStorage.getItem("fc.volume") || "70", 10);
   vol.value = savedVol;
@@ -20,21 +22,36 @@
     return state.stations[idx] || { name: "No stations", sub: "add one in Settings" };
   }
 
+  function setSong(title) {
+    var next = title || "";
+    if (next === currentSong) return;
+    currentSong = next;
+    if (songEl) {
+      songEl.textContent = currentSong;
+      songEl.classList.toggle("show", !!currentSong);
+    }
+  }
+
+  function updateMetadata() {
+    if (!("mediaSession" in navigator)) return;
+    try {
+      var s = currentStation();
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentSong || s.name,
+        artist: currentSong ? s.name : s.sub || "",
+        album: "Radio"
+      });
+    } catch (e) {}
+  }
+
   function paint() {
     var s = currentStation();
     nameEl.textContent = s.name;
-    subEl.textContent = s.sub;
+    subEl.textContent = s.sub || "";
+    setSong("");
     document.title = "Flip Clock · " + s.name;
     if (onStationChange) onStationChange(idx, wantPlay);
-    if ("mediaSession" in navigator) {
-      try {
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: s.name,
-          artist: s.sub,
-          album: "Radio"
-        });
-      } catch (e) {}
-    }
+    updateMetadata();
   }
 
   function setState(st) {
@@ -44,10 +61,14 @@
       playBtn.setAttribute("aria-label", "pause");
       hint.classList.remove("show");
       subEl.textContent = (state.stations[idx] || {}).sub || "";
+      updateMetadata();
     } else {
       playBtn.innerHTML = "&#9654;";
       playBtn.setAttribute("aria-label", "play");
-      if (st === "err") subEl.textContent = "stream unreachable — try another station";
+      if (st === "err") {
+        subEl.textContent = "stream unreachable — try another station";
+        setSong("");
+      }
     }
   }
 
@@ -73,6 +94,7 @@
     audio.load();
     setState("idle");
     subEl.textContent = (state.stations[idx] || {}).sub || "";
+    setSong("");
   }
 
   function selectStation(i, play) {
@@ -118,6 +140,7 @@
 
   audio.addEventListener("playing", function () {
     setState("live");
+    updateMetadata();
   });
   audio.addEventListener("waiting", function () {
     dot.className = "dot";
@@ -127,6 +150,9 @@
   });
   audio.addEventListener("error", function () {
     setState("err");
+  });
+  audio.addEventListener("loadedmetadata", function () {
+    updateMetadata();
   });
   audio.addEventListener("stalled", function () {
     dot.className = "dot";
